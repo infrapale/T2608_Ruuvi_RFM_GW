@@ -25,7 +25,7 @@ https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide/all
 #include "atask.h"
 #include "io.h"
 //#include "uart.h"
-#include "handler.h"
+//#include "handler.h"
 #include "ruuvi.h"
 
 //*********************************************************************************************
@@ -44,7 +44,6 @@ void initialize_tasks(void)
     atask_initialize();
     atask_add_new(&debug_print_handle);
     //uart_initialize();
-    handler_initialize();
     ruuvi_initialize();
 }
 

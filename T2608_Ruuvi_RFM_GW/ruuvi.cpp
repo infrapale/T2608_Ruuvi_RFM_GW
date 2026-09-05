@@ -3,10 +3,11 @@
 #include "main.h"
 #include "ruuvi.h"
 #include "io.h"
+#include "atask.h"
+#include "r69.h"
 //#include "uart.h"
 
-#define  RUUVI_NBR_OF           2
-#define  RUUVI_TX_INTERVAL      30000
+
 // -----------------------------
 // RuuviTag Format 5 Parser
 // -----------------------------
@@ -17,19 +18,27 @@ typedef struct
     char    buff[UART_MSG_LEN];
 } ruuvi_st;
 
+void ruuvi_task(void);
+//                                  123456789012345   ival  next  state  prev  cntr flag  call backup
+atask_st ruuvi_th            =    {"Ruuvi Task     ", 1000,    0,     0,  255,    0,  1,  ruuvi_task };
+
+
 ruuvi_st ruuvi = {0};
 
-const uint8_t ruuvit [RUUVI_NBR_OF][6] =
+ruuvi_const_data_st ruuvit[RUUVI_NBR_OF] =
 {
-    {0xE6,0x2C,0x8D,0xDB,0x22,0x35},
-    {0xF2,0x5B,0x48,0x64,0x65,0x24,}
+    { .name ="MH1", .mac ={0xE6,0x2C,0x8D,0xDB,0x22,0x35}},
+    { .name ="Parvi", .mac ={0xF2,0x5B,0x48,0x64,0x65,0x24}},
+    { .name ="Parveke", .mac ={0xEA,0x78,0xE2,0x12,0x36,0xF8}}
 };
 
-ruuvi_data_st ruuvi_data[RUUVI_NBR_OF] =
-{
-    {.tx_indx = -1, .name = "MH1", .temp = 0.0, .hum = 0.0, .pressure=0.0, .battery= 0.0, .tx_power=0, .updated=false},
-    {.tx_indx = -1, .name = "Parvi", .temp = 0.0, .hum = 0.0, .pressure=0.0, .battery= 0.0, .tx_power=0, .updated=false},
-};
+ruuvi_meta_st ruuvi_meta[RUUVI_NBR_OF] = {0};
+
+ruuvi_data_st ruuvi_rd_data = {0};
+
+ruuvi_data_st ruuvi_data[RUUVI_NBR_OF] = {0};
+
+ruuvi_data_st ruuvi_cum_data[RUUVI_NBR_OF] = {0};
 
 
 bool parseRuuviFormat5(const uint8_t *data, uint8_t len, RuuviData &out) {
@@ -69,20 +78,80 @@ bool parseRuuviFormat5(const uint8_t *data, uint8_t len, RuuviData &out) {
 static btstack_packet_callback_registration_t hci_cb;
 
 
-void ruuvi_send_data(ruuvi_data_st *rdata)
+void ruuvi_save_data(uint8_t rindx, ruuvi_data_st *ruuvi_rd_data)
 {
-    // <##B1T1=;Abcdef;21.4;44.0;2.9;>
-    sprintf(ruuvi.buff,"<##B1T1=;%s;%.1f;%.0f;%.2f>",
-        rdata->name,
-        rdata->temp,
-        rdata->hum,
-        rdata->battery);
+
+    ruuvi_cum_data[rindx].temp     += ruuvi_rd_data->temp;
+    ruuvi_cum_data[rindx].hum      += ruuvi_rd_data->hum;
+    ruuvi_cum_data[rindx].pressure += ruuvi_rd_data->pressure;
+    ruuvi_cum_data[rindx].battery  += ruuvi_rd_data->battery;
+
+    if(++ruuvi_meta[rindx].save_indx >= RUUVI_AVG_POINTS) {
+        ruuvi_data[rindx].temp = ruuvi_cum_data[rindx].temp / RUUVI_AVG_POINTS;
+        ruuvi_data[rindx].hum = ruuvi_cum_data[rindx].hum / RUUVI_AVG_POINTS;
+        ruuvi_data[rindx].pressure = ruuvi_cum_data[rindx].pressure / RUUVI_AVG_POINTS;
+        ruuvi_data[rindx].battery = ruuvi_cum_data[rindx].battery / RUUVI_AVG_POINTS;
+        ruuvi_meta[rindx].save_indx = 0;
+        ruuvi_meta[rindx].updated = true;
+
+        ruuvi_cum_data[rindx].temp = 0.0;
+        ruuvi_cum_data[rindx].hum = 0.0;
+        ruuvi_cum_data[rindx].pressure = 0.0;
+        ruuvi_cum_data[rindx].battery = 0.0;
+    }
+}
+
+//                    
+void ruuvi_send_data(uint8_t rindx)
+{
+    // <S;#;Abcdef;T;21.4;H;44.0;B;2.9;>
+    sprintf(ruuvi.buff,"<S;%s;T;%.1f;H;%.0f;B;%.2f>",
+        ruuvit[rindx].name,
+        ruuvi_data[rindx].temp,
+        ruuvi_data[rindx].hum,
+        ruuvi_data[rindx].battery);
     Serial.println(ruuvi.buff);
+    r69_send(ruuvi.buff);
     //uart_add_msg(rdata->tx_indx, ruuvi.buff);
+}
+
+void ruuvi_task(void)
+{
+
+    switch(ruuvi_th.state)
+    {
+        case 0:
+            ruuvi_th.state = 10;
+            break;
+        case 10:
+            if(ruuvi_meta[ruuvi.index].updated){
+                if(millis() > ruuvi_meta[ruuvi.index].next_send){
+                    ruuvi_meta[ruuvi.index].next_send = millis() + RUUVI_RFM_INTERVAL;
+                    ruuvi_meta[ruuvi.index].updated = false;
+                    ruuvi_send_data(ruuvi.index);
+                }
+            }
+            ruuvi_th.state = 100;
+            break;
+        case 20:
+            ruuvi_th.state = 10;
+            break;
+        case 30:
+            ruuvi_th.state = 10;
+            break;
+        case 50:
+            ruuvi_th.state = 10;
+            break;
+        case 100:
+            if(++ruuvi.index >= RUUVI_NBR_OF) ruuvi.index++;
+            ruuvi_th.state = 10;
+            break;
+    }
 }
 
 void handle_adv(uint8_t *packet) {
     uint8_t addr[6];
+
     gap_event_advertising_report_get_address(packet, addr);
 
     const uint8_t *data = gap_event_advertising_report_get_data(packet);
@@ -106,7 +175,7 @@ void handle_adv(uint8_t *packet) {
                 for (rindx = 0; (rindx < RUUVI_NBR_OF) && !tuttu_ruuvi; rindx++) {
                     bool addr_match = true;
                     for (int n = 0; (n < 6) && addr_match; n++) {
-                        if(addr[n] != ruuvit[rindx][n]) addr_match = false;
+                        if(addr[n] != ruuvit[rindx].mac[n]) addr_match = false;
                     }
                     if (addr_match) {
                         ruuvi.index = rindx;
@@ -126,13 +195,14 @@ void handle_adv(uint8_t *packet) {
                     // Serial.printf("Movement: %u\n", rd.movementCounter);
                     // Serial.printf("Sequence: %u\n", rd.sequence);
                     // Serial.println("======================\n");
-                    ruuvi_data[ruuvi.index].temp        = rd.temperature;
-                    ruuvi_data[ruuvi.index].hum         = rd.humidity;
-                    ruuvi_data[ruuvi.index].pressure    = rd.pressure;
-                    ruuvi_data[ruuvi.index].battery     = rd.batteryVoltage;
-                    ruuvi_data[ruuvi.index].tx_power    = rd.txPower;
-                    ruuvi_data[ruuvi.index].updated     = true;
-                    ruuvi_send_data(&ruuvi_data[ruuvi.index]);
+                    ruuvi_rd_data.temp        = rd.temperature;
+                    ruuvi_rd_data.hum         = rd.humidity;
+                    ruuvi_rd_data.pressure    = rd.pressure;
+                    ruuvi_rd_data.battery     = rd.batteryVoltage;
+                    ruuvi_rd_data.tx_power    = rd.txPower;
+                    ruuvi_rd_data.updated     = true;
+                    ruuvi_save_data(ruuvi.index, &ruuvi_rd_data);
+                    // ruuvi_send_data(ruuvi.index);
                 }
             }
         }
@@ -154,7 +224,12 @@ void ruuvi_initialize() {
     Serial.println("Initializing BLE...");
     for (uint8_t i = 0; i < RUUVI_NBR_OF; i++)
     {
+        ruuvi_meta[i].next_send = millis() + RUUVI_RFM_INTERVAL;
+        ruuvi_meta[i].save_indx = 0;
+        ruuvi_meta[i].updated = false;
+
         //ruuvi_data[i].tx_indx = uart_reserve_tx_buffer(RUUVI_TX_INTERVAL);
+        
     }
 
     // BLE and Wi-Fi cannot run together
@@ -169,6 +244,7 @@ void ruuvi_initialize() {
     gap_set_scan_parameters(0, 0x30, 0x30);
     gap_start_scan();
 
+    atask_add_new(&ruuvi_th); 
     Serial.println("Scanning for RuuviTags...");
 }
 

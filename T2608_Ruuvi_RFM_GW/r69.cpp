@@ -46,7 +46,7 @@ void r69_initialize(void)
 
     io_rfm69_spi0_initialize();
     r69.not_send_before = millis() + MIN_SEND_INTERVAL;
-    rfm69_modem.set_debug_print(debug_cb_print);
+    // rfm69_modem.set_debug_print(debug_cb_print);
     rfm69_modem.initialize(key);
     rfm69_modem.radiate(__APP__);
 
@@ -93,6 +93,7 @@ void r69_tx_task(void)
         case 20:
             rfm69_modem.radiate(r69.txbuff);
             r69.not_send_before = millis() + MIN_SEND_INTERVAL;
+            io_led_flash(LED_BLUE, BLINK_FAST, 20);
             tx_th.state = 30;
             break;
         case 30:

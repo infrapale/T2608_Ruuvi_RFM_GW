@@ -235,14 +235,14 @@ void msg_process_sms_cmd(void)
                 Serial.println(buff);
                 break;
             case SMS_CMD_SENSOR_PIHA1:
-                sprintf(buff,"<S;#;PIHA1;T;-12.3;H;44;L;2344>");
+                sprintf(buff,"<S;PIHA1;T;-12.3;H;44;L;2344>");
                 Serial.println(buff);
                 break;
             case SMS_CMD_SENSOR_REPO1:
                 msg_send_repo1();
                 break;
             case SMS_CMD_SENSOR_REPO2:
-                sprintf(buff,"<S;#;REPO2;T;22.3;W;13.4;l;876>");
+                sprintf(buff,"<S;REPO2;T;22.3;W;13.4;l;876>");
                 Serial.println(buff);
                 break;
             default:
@@ -349,8 +349,8 @@ test_msg_st test[TEST_MSG_NBR_OF] =
       {MSG_FROM_SMS, "PUMP;100"},
       {MSG_FROM_SMS, "PUMP;0"},
       {MSG_FROM_RFM, "\r\n<S;#;PIHA1;T;-12.3;H;44;L;2344>"},
-      {MSG_FROM_RFM, "<S;#;RANTA;T;22.3;W;13.4;l;876>\n"},
-      {MSG_FROM_RFM, "{A;#;PIHA2;PIR1;1;PIR2;0}"},
+      {MSG_FROM_RFM, "<S;RANTA;T;22.3;W;13.4;l;876>\n"},
+      {MSG_FROM_RFM, "{A;PIHA2;PIR1;1;PIR2;0}"},
       {MSG_FROM_RFM, "<A#TK1OVI1;>"},
       {MSG_FROM_RFM, "<A;#;TK1;OVI1;?>"}
 };

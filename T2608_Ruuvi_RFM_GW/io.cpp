@@ -25,14 +25,8 @@ io_ctrl_st io_ctrl;
 
 led_st led[LED_NBR_OF] =
 {
-    {PIN_LED_RED, 0, 0, false},
+    {PIN_LED_YELLOW, 0, 0, false},
     {PIN_LED_BLUE, 0, 0, false},
-};
-
-const uint8_t pin_dip_sw[IO_DIP_SW_NBR_OF] =
-{
-    PIN_DIP_SW1, PIN_DIP_SW2, PIN_DIP_SW3, PIN_DIP_SW4, 
-    PIN_DIP_SW5, PIN_DIP_SW6, PIN_DIP_SW7, PIN_DIP_SW8, 
 };
 
 const uint32_t led_pattern[BLINK_NBR_OF] = 
@@ -53,7 +47,7 @@ const uint32_t led_pattern[BLINK_NBR_OF] =
 
 void io_task(void);
 //                                  123456789012345   ival  next  state  prev  cntr flag  call backup
-atask_st io_task_handle       =   {"I/O Task       ", 100,     0,     0,  255,    0,  1,  io_task };
+atask_st io_th                =   {"I/O Task       ", 100,     0,     0,  255,    0,  1,  io_task };
 
 void io_rfm69_spi0_initialize(void) 
 {
@@ -75,29 +69,27 @@ void io_rfm69_spi0_initialize(void)
 
 void io_initialize(void)
 {
-  analogReadResolution(12);
-  //RFM95 Reset
-  pinMode(PIN_RFM_RESET, OUTPUT);
-  digitalWrite(PIN_RFM_RESET, HIGH);
+    analogReadResolution(12);
+    //RFM95 Reset
+    pinMode(PIN_RFM_RESET, OUTPUT);
+    digitalWrite(PIN_RFM_RESET, HIGH);
 
-  pinMode(PIN_PWRKEY, OUTPUT);
-  pinMode(PIN_RESET, OUTPUT);
+    pinMode(PIN_PWRKEY, OUTPUT);
+    pinMode(PIN_RESET, OUTPUT);
 
-  io_ctrl.pattern_bit = 0;
-  for (uint8_t i = LED_RED; i <= LED_BLUE; i++)
-  {
-    pinMode(led[i].pin, OUTPUT);
-    digitalWrite(led[i].pin, LOW);
-  } 
-  for (uint8_t i = 0; i < IO_DIP_SW_NBR_OF; i++){
-    pinMode(pin_dip_sw[i], INPUT_PULLUP);
-  }
-
+    io_ctrl.pattern_bit = 0;
+    for (uint8_t i = LED_YELLOW; i <= LED_BLUE; i++)
+    {
+        pinMode(led[i].pin, OUTPUT);
+        digitalWrite(led[i].pin, LOW);
+    } 
+    pinMode(PIN_EN_DEB, INPUT_PULLUP);
+    atask_add_new(&io_th);
 }
 
-uint8_t io_read_dip_sw(uint8_t sw)
+uint8_t io_read_enable_debug(void)
 {
-    return digitalRead(pin_dip_sw[sw]);
+    return digitalRead(PIN_EN_DEB);
 }
 
 void io_task_initialize(void)
@@ -120,7 +112,7 @@ void io_task(void)
 {
 
     uint32_t patt = 1UL << io_ctrl.pattern_bit;
-    for (uint8_t i = LED_RED; i <= LED_BLUE; i++)
+    for (uint8_t i = LED_YELLOW; i <= LED_BLUE; i++)
     {
         if (led[i].enable){
             if ((led[i].tick_nbr > 0) || led[i].forever) {

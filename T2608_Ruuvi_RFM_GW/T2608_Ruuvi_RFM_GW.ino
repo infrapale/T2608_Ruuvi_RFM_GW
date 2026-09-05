@@ -24,6 +24,7 @@ https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide/all
 #include "secrets.h"
 #include "atask.h"
 #include "io.h"
+#include "r69.h"
 //#include "uart.h"
 //#include "handler.h"
 #include "ruuvi.h"
@@ -42,8 +43,10 @@ atask_st debug_print_handle        = {"Debug Print    ", 5000,0, 0, 255, 0, 1, d
 void initialize_tasks(void)
 {
     atask_initialize();
+    io_initialize();
     atask_add_new(&debug_print_handle);
     //uart_initialize();
+    r69_initialize();
     ruuvi_initialize();
 }
 
@@ -61,7 +64,7 @@ void setup()
     Serial.print(__DATE__); Serial.print(" ");
     Serial.print(__TIME__); Serial.println();
     //SerialTFT.begin(9600);
-    io_initialize();
+
     initialize_tasks();
 }
 

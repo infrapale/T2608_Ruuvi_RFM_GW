@@ -30,10 +30,6 @@ super_st super =
     }
 };
 
-
-
-
-
 // atask_st:            = {"Label          ", ival, next, state, prev, cntr, run, task_ptr };
 atask_st super_th       = {"Super Task     ", 1000,    0,     0,  255,    0,   1, super_task};
 
@@ -76,7 +72,7 @@ void super_task(void)
                     Serial.printf("Starting WD reset for counter %d\n",i);
                     super_th.state = 100;
                     super.timeout = millis() + SUPER_WD_TIMEOUT + 1000;
-                    io_led_flash(LED_RED, BLINK_SOS, 100);
+                    io_led_flash(LED_YELLOW, BLINK_SOS, 100);
                 }
             }
             break;

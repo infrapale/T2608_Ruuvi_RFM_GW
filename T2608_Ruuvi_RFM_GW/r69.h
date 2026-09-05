@@ -2,6 +2,7 @@
 #define __R69_H__
 
 #define R69_MSG_SIZE        (60)
+#define RFM_MIN_TX_INTERVAL     10000
 
 
 typedef struct

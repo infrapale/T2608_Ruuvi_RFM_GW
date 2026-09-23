@@ -28,7 +28,10 @@ ruuvi_st ruuvi = {0};
 ruuvi_const_data_st ruuvit[RUUVI_NBR_OF] =
 {
     { .name ="MH1", .mac ={0xE6,0x2C,0x8D,0xDB,0x22,0x35}},
-    { .name ="Parvi", .mac ={0xF2,0x5B,0x48,0x64,0x65,0x24}},
+    { .name ="3072", .mac ={0xED,0x9A,0xAB,0xC6,0x30,0x72}},
+    { .name ="Ulko", .mac ={0xF2,0x5B,0x48,0x64,0x65,0x24}},
+    { .name ="939B", .mac ={0xFC,0xBB,0xC3,0x29,0x93,0x9B}},
+    { .name ="1FEA", .mac ={0xE4,0x35,0x8F,0x17,0x1F,0xEA}},
     { .name ="Parveke", .mac ={0xEA,0x78,0xE2,0x12,0x36,0xF8}}
 };
 
@@ -117,7 +120,7 @@ void ruuvi_send_data(uint8_t rindx)
 
 void ruuvi_task(void)
 {
-
+    static uint32_t timeout;
     switch(ruuvi_th.state)
     {
         case 0:
@@ -129,12 +132,14 @@ void ruuvi_task(void)
                     ruuvi_meta[ruuvi.index].next_send = millis() + RUUVI_RFM_INTERVAL;
                     ruuvi_meta[ruuvi.index].updated = false;
                     ruuvi_send_data(ruuvi.index);
+                    timeout = millis() + 10000;
+                    ruuvi_th.state = 20;
                 }
             }
             ruuvi_th.state = 100;
             break;
         case 20:
-            ruuvi_th.state = 10;
+            if (millis() > timeout) ruuvi_th.state = 100;
             break;
         case 30:
             ruuvi_th.state = 10;
